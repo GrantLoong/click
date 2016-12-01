@@ -15,6 +15,7 @@ import zlib
 import time
 import ctypes
 import msvcrt
+import collections
 from click._compat import _NonClosingTextIOWrapper, text_type, PY2
 from ctypes import byref, POINTER, c_int, c_char, c_char_p, \
      c_void_p, py_object, c_ssize_t, c_ulong, windll, WINFUNCTYPE
@@ -223,11 +224,6 @@ def _get_text_stderr(buffer_stream):
 
 
 if PY2:
-    def _hash_py_argv():
-        return zlib.crc32('\x00'.join(sys.argv[1:]))
-
-    _initial_argv_hash = _hash_py_argv()
-
     def _get_windows_argv():
         argc = c_int(0)
         argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
@@ -243,7 +239,27 @@ if PY2:
                 if arg.startswith(('-c', '-m')):
                     break
 
-        return argv[1:]
+        # Create an in-order list of candidate unicode translations
+        # for each ascii string
+        ascii_map = collections.defaultdict(list)
+        for arg in argv:
+            ascii_map[arg.encode("ascii", errors="replace")].append(arg)
+
+        # Reverse the order so that the first appearing argument comes 
+        # last, to avoid having to use the slow pop(0)
+        for v in ascii_map.values():
+            v.reverse()
+
+        # Translate sys.argv contents
+        ret = []
+        for arg in sys.argv[1:]:
+            candidates = ascii_map[arg]
+            if candidates:
+                ret.append(candidates.pop())
+            else:
+                ret.append(arg)
+
+        return ret
 
 
 _stream_factories = {

@@ -11,8 +11,7 @@ from ._compat import text_type, open_stream, get_filesystem_encoding, \
 if not PY2:
     from ._compat import _find_binary_writer
 elif WIN:
-    from ._winconsole import _get_windows_argv, \
-         _hash_py_argv, _initial_argv_hash
+    from ._winconsole import _get_windows_argv
 
 
 echo_native_types = string_types + (bytes, bytearray)
@@ -43,6 +42,7 @@ def make_str(value):
 
 
 def make_default_short_help(help, max_length=45):
+    """Return a condensed version of help string."""
     words = help.split()
     total_length = 0
     result = []
@@ -171,7 +171,7 @@ def echo(message=None, file=None, nl=True, err=False, color=None):
 
     Primarily it means that you can print binary data as well as Unicode
     data on both 2.x and 3.x to the given file in the most appropriate way
-    possible.  This is a very carefree function as in that it will try its
+    possible.  This is a very carefree function in that it will try its
     best to not fail.  As of Click 6.0 this includes support for unicode
     output on the Windows console.
 
@@ -340,9 +340,8 @@ def get_os_args():
 
     .. versionadded:: 6.0
     """
-    # We can only extract the unicode argv if sys.argv has not been
-    # changed since the startup of the application.
-    if PY2 and WIN and _initial_argv_hash == _hash_py_argv():
+    if PY2 and WIN:
+        # Attempt to translate sys.argv to unicode
         return _get_windows_argv()
     return sys.argv[1:]
 
